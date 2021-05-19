@@ -1,3 +1,5 @@
+# Todo: Change Loading Data Mechanism
+
 import csv
 import os
 
@@ -12,14 +14,20 @@ from PIL import Image
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 
+# Todo: Develop draw Function with multiple parameters
 def draw(*args):
+    tensor = args[0]
     if len(args) > 1:
-        draw(args[0], args[1], args[2])
+        column = args[1], row = args[2]
+        fig = plt.figure(figsize=(8, 8))
+        for i in range(1, column * row + 1):
+            fig.add_subplot(row, column, i)
+            plt.imshow(img)
+        plt.show()
     else:
-        image = np.reshape(args[0].numpy(), (28, 28))
+        image = np.reshape(tensor.numpy(), (28, 28))
         plt.imshow(image, cmap='gray')
         plt.show()
-
 
 command = input('Input your Command: ')
 
@@ -34,11 +42,12 @@ if command == 'n':  # New model
     with open('dataset/mnist_train.csv') as train_csv:
         reader = csv.reader(train_csv)
         next(reader)
-        for line in reader:
+        for idx, line in enumerate(reader):
             label = [0 for i in range(10)]
             label[int(line[0])] = 1
             train_label.append(label)
-            train_data.append(list(map(int, line[1:])))
+            train_data.append(np.array([list(map(int, line[1:]))]).reshape((28, 28, 1)))
+            print(f'Loading {idx + 1}/{60000} : {line}')
 
     # Make Dataset
     x_train = torch.FloatTensor(train_data)
@@ -47,26 +56,32 @@ if command == 'n':  # New model
     train_dataset = TensorDataset(x_train, y_train)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
+    print('Training Data Load Done !')
+
     # Generate Model and Training
     model = nn.Sequential(
-        nn.Linear(784, 200),
-        nn.ReLU(),
-        nn.Linear(200, 50),
-        nn.ReLU(),
-        nn.Linear(50, 10),
-        nn.Sigmoid()
+        nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2)
+        ), nn.Sequential(
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2)
+        ), nn.Sequential(
+            nn.Linear(7 * 7 * 64, 10, bias=True)
+        )
     )
 
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+    print('Model Generation Done !')
 
     epochs = 40
     for epoch in range(epochs + 1):
         for samples in train_dataloader:
             X, Y = samples
-
             draw(X, 4, 4)
-            # for cur in X:
-            #     draw(cur)
 
             prediction = model(X)
             cost = functional.mse_loss(prediction, Y)
@@ -99,7 +114,7 @@ elif command == 'la':  # Load model
             label = [0 for i in range(10)]
             label[int(line[0])] = 1
             test_label.append(label)
-            test_data.append(list(map(int, line[1:])))
+            test_data.append(np.array([list(map(int, line[1:]))]).reshape((28, 28, 1)))
 
     x_test = torch.FloatTensor(test_data)
     y_test = torch.FloatTensor(test_label)
