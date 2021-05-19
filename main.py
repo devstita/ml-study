@@ -1,5 +1,3 @@
-# Todo: Change Loading Data Mechanism
-
 import csv
 import os
 
@@ -14,7 +12,6 @@ from PIL import Image
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 
-# Todo: Develop draw Function with multiple parameters
 def draw(*args):
     tensor = args[0]
     if len(args) > 1:
@@ -22,12 +19,13 @@ def draw(*args):
         fig = plt.figure(figsize=(8, 8))
         for i in range(1, column * row + 1):
             fig.add_subplot(row, column, i)
-            plt.imshow(img)
+            plt.imshow(tensor[i - 1])
         plt.show()
     else:
         image = np.reshape(tensor.numpy(), (28, 28))
         plt.imshow(image, cmap='gray')
         plt.show()
+
 
 command = input('Input your Command: ')
 
@@ -36,22 +34,13 @@ if command == 'n':  # New model
     learning_rate = 1e-5
 
     # Read Data from CSV File
-    train_data = []
-    train_label = []
-
-    with open('dataset/mnist_train.csv') as train_csv:
-        reader = csv.reader(train_csv)
-        next(reader)
-        for idx, line in enumerate(reader):
-            label = [0 for i in range(10)]
-            label[int(line[0])] = 1
-            train_label.append(label)
-            train_data.append(np.array([list(map(int, line[1:]))]).reshape((28, 28, 1)))
-            print(f'Loading {idx + 1}/{60000} : {line}')
 
     # Make Dataset
-    x_train = torch.FloatTensor(train_data)
-    y_train = torch.FloatTensor(train_label)
+    x_train = torch.FloatTensor(np.array(np.load('dataset/train_data.npy')))
+    y_train = torch.FloatTensor(np.array(np.load('dataset/train_label.npy')))
+
+    print(x_train.shape)
+    print(x_train)
 
     train_dataset = TensorDataset(x_train, y_train)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
@@ -59,6 +48,7 @@ if command == 'n':  # New model
     print('Training Data Load Done !')
 
     # Generate Model and Training
+    # Todo: Check model structure
     model = nn.Sequential(
         nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
@@ -79,9 +69,11 @@ if command == 'n':  # New model
 
     epochs = 40
     for epoch in range(epochs + 1):
-        for samples in train_dataloader:
-            X, Y = samples
-            draw(X, 4, 4)
+        for X, Y in train_dataloader:
+            print(X)
+            print(X.shape)
+            print(Y)
+            print(Y.shape)
 
             prediction = model(X)
             cost = functional.mse_loss(prediction, Y)
@@ -104,22 +96,10 @@ elif command == 'la':  # Load model
     model = torch.load('model_save.dat')
     model.eval()
 
-    test_data = []
-    test_label = []
+    x_test = torch.FloatTensor(np.array(np.load('dataset/test_data.npy')))
+    y_test = torch.FloatTensor(np.array(np.load('dataset/test_label.npy')))
 
-    with open('dataset/mnist_test.csv') as test_csv:
-        reader = csv.reader(test_csv)
-        next(reader)
-        for line in reader:
-            label = [0 for i in range(10)]
-            label[int(line[0])] = 1
-            test_label.append(label)
-            test_data.append(np.array([list(map(int, line[1:]))]).reshape((28, 28, 1)))
-
-    x_test = torch.FloatTensor(test_data)
-    y_test = torch.FloatTensor(test_label)
-
-    data_size = len(test_label)
+    data_size = len(y_test)
     count_of_true = 0
     for idx, in_data in enumerate(x_test):
         prediction = torch.argmax(model(in_data))
