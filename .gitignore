@@ -108,6 +108,7 @@ modules.xml
 # End of https://www.toptal.com/developers/gitignore/api/pycharm+all,jupyternotebooks
 
 
-dataset/*
+dataset/
 test.jpg
 model_save*
+runs/
