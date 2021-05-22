@@ -99,6 +99,7 @@ elif command == 'la':  # Load model and Check Accuracy
     print(f'{(correct_count * 100 / x_test.shape[0]):.2f}%')
 
 elif command == 'lq':
+    #  Todo: Drawing Alert (NOT IMPORT FILE)
     file_path = input('File Path: ')
     if not os.path.isfile(file_path):
         print('File does not exist..')
@@ -116,24 +117,9 @@ elif command == 'lq':
 
     read_data = np.array(Image.open(file_path).convert('L'), dtype=np.float32)
     img = torch.from_numpy(read_data)
+    print('My Prediction is', torch.argmax(model(img.reshape(1, 1, 28, 28))).item())
     draw(img)
 
-    # # Todo: Develop function to see inside of MACHINE
-    # img = model[0](img.reshape(1, 1, 28, 28))
-    # merged_img = np.zeros((5, 5))
-    # for cur_stack in img[0]:
-    #     merged_img += cur_stack.detach().numpy()
-    # draw(merged_img)
-    #
-    # img = model[1](img)
-    # print(img.shape)
-    #
-    # img = model[2](img)
-    # print(img.shape)
-    # print(img)
-
-    # Todo: Know why predictions are WRONG
-    print('My Prediction is', torch.argmax(img[0]).item())
 else:
     print("Exit..")
 
