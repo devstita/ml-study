@@ -9,6 +9,8 @@ from torch.utils.data import DataLoader, TensorDataset
 from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 
+import drawing
+
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 saved_model_file_name = 'model_save_cnn.dat'
@@ -25,7 +27,7 @@ def draw(image):
     plt.show()
 
 
-command = input('Input your Command: ')
+command = input('Input your Command: ').replace(' ', '')
 
 if command == 'n':  # New model
     batch_size = 100
@@ -63,20 +65,19 @@ if command == 'n':  # New model
 
     print('Model Generation Done!')
 
-    epochs = 15
+    epochs = 30
+    iteration = len(train_dataloader)
     for epoch in range(epochs + 1):
-        idx = 0
-        for X, Y in train_dataloader:
+        for idx, (X, Y) in enumerate(train_dataloader):
             prediction = model(X)
-            cost = functional.mse_loss(prediction, Y)
-            writer.add_scalar('Training Cost', cost, epoch * 60000 + idx)
+            cost = functional.cross_entropy(prediction, Y.argmax(axis=1))
+            writer.add_scalar('Training Cost', cost, epoch * iteration + idx)
 
             optimizer.zero_grad()
             cost.backward()
             optimizer.step()
 
-            print(f'Epoch: {epoch}/{epochs}\tCost: {cost.item()}')
-            idx += 1
+            print(f'Epoch: {epoch}/{epochs} Batch: {idx}/{len(train_dataloader)}\tCost: {cost.item()}')
 
     torch.save(model, saved_model_file_name)
 
@@ -91,20 +92,16 @@ elif command == 'la':  # Load model and Check Accuracy
     model = torch.load(saved_model_file_name)
     model.eval()
 
-    x_test = torch.FloatTensor(np.array(np.load('dataset/test_data.npy').reshape((10000, 1, 28, 28))))
-    y_test = torch.FloatTensor(np.array(np.load('dataset/test_label.npy'))).argmax(axis=1)
-    prediction = model(x_test).argmax(axis=1)
+    with torch.no_grad():
+        x_test = torch.FloatTensor(np.array(np.load('dataset/test_data.npy').reshape((10000, 1, 28, 28))))
+        y_test = torch.FloatTensor(np.array(np.load('dataset/test_label.npy'))).argmax(axis=1)
+        prediction = model(x_test).argmax(axis=1)
 
-    correct_count = (prediction == y_test).sum()
-    print(f'{(correct_count * 100 / x_test.shape[0]):.2f}%')
+        accuracy = (prediction == y_test).to(torch.float32).mean()
+        print(f'Accuracy: {accuracy:.4f}')
 
 elif command == 'lq':
-    #  Todo: Drawing Alert (NOT IMPORT FILE)
-    file_path = input('File Path: ')
-    if not os.path.isfile(file_path):
-        print('File does not exist..')
-        exit(2)
-
+    # Todo: Drawing Alert (NOT IMPORT FILE)
     if not os.path.isfile(saved_model_file_name):
         print('Saved model does not exist..')
         exit(3)
@@ -115,10 +112,21 @@ elif command == 'lq':
     model = torch.load(saved_model_file_name)
     model.eval()
 
-    read_data = np.array(Image.open(file_path).convert('L'), dtype=np.float32)
-    img = torch.from_numpy(read_data)
-    print('My Prediction is', torch.argmax(model(img.reshape(1, 1, 28, 28))).item())
-    draw(img)
+    file_path = input('File Path: ')
+    img_np = None
+    if file_path == 'draw':
+        drawing.draw(28, 28)
+    elif os.path.isfile(file_path):
+        img_np = np.array(Image.open(file_path).convert('L'), dtype=np.float32)
+    else:
+        print('File does not exist..')
+        exit(2)
+
+    print('My Prediction is', torch.argmax(model(torch.from_numpy(img_np).reshape(1, 1, 28, 28))).item())
+    draw(img_np)
+
+elif command == 'tc':
+    pass
 
 else:
     print("Exit..")
