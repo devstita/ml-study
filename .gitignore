@@ -112,3 +112,4 @@ dataset/
 test.jpg
 model_save*
 runs/
+__pycache__/

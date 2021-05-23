@@ -1,20 +1,19 @@
 import os
 from collections import OrderedDict
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch import nn, optim
 from torch.nn import functional
 from torch.utils.data import DataLoader, TensorDataset
 from PIL import Image
-from torch.utils.tensorboard import SummaryWriter
 
 import drawing
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 saved_model_file_name = 'model_save_cnn.dat'
-writer = SummaryWriter()
 
 
 class Flatten(nn.Module):
@@ -25,6 +24,9 @@ class Flatten(nn.Module):
 command = input('Input your Command: ').replace(' ', '')
 
 if command == 'n':  # New model
+    from torch.utils.tensorboard import SummaryWriter
+    writer = SummaryWriter()
+
     batch_size = 100
     learning_rate = 1e-3
 
@@ -79,6 +81,7 @@ if command == 'n':  # New model
             print(f'Epoch: {epoch}/{epochs} Batch: {idx}/{len(train_dataloader)}\tCost: {cost.item()}')
 
     torch.save(model, saved_model_file_name)
+    writer.close()
 
 elif command == 'la':  # Load model and Check Accuracy
     if not os.path.isfile(saved_model_file_name):
@@ -110,35 +113,37 @@ elif command == 'lq':
     model = torch.load(saved_model_file_name)
     model.eval()
 
-    file_path = input('File Path: ')
-    img_np = None
-    if file_path == 'draw':
-        img_np = drawing.draw(28).astype(np.float32)
-    elif os.path.isfile(file_path):
-        img_np = np.array(Image.open(file_path).convert('L'), dtype=np.float32)
-    else:
-        print('File does not exist..')
-        exit(2)
+    image = drawing.draw(28).astype(np.float32)
 
-    print('My Prediction is', torch.argmax(model(torch.from_numpy(img_np).reshape(1, 1, 28, 28))).item())
-    drawing.show(img_np)
+    print('My Prediction is', torch.argmax(model(torch.from_numpy(image).reshape(1, 1, 28, 28))).item())
+    drawing.show(image)
 
 elif command == 'tc':
     model = torch.load('model_save_cnn.dat')
-    conv1 = model[0]
-    conv2 = model[1]
-    fc = model[2]
+    model.eval()
 
-    model = nn.Sequential(OrderedDict({
-        'Convolutional Layer1': conv1,
-        'Convolutional Layer2': conv2,
-        'Fully Connected Layer': fc
-    }))
+    conv1_weights, conv2_weights = None, None
+    for name, param in model[0][0].named_parameters():
+        if name == 'weight':
+            conv1_weights = param.data
 
-    writer.add_graph(model, torch.from_numpy(np.ones((1, 1, 28, 28), dtype=np.float32)))
-    torch.save(model, 'model_save_cnn.dat')
+    for name, param in model[1][0].named_parameters():
+        if name == 'weight':
+            conv2_weights = param.data
+
+    plt.figure(figsize=(20, 20))
+    for i, kernel in enumerate(conv1_weights):
+        plt.subplot(8, 8, i + 1)
+        plt.imshow(kernel[0, :, :].detach(), cmap='gray')
+        plt.axis('off')
+    plt.show()
+
+    plt.figure(figsize=(20, 20))
+    for i, kernel in enumerate(conv2_weights):
+        plt.subplot(8, 8, i + 1)
+        plt.imshow(kernel[0, :, :].detach(), cmap='gray')
+        plt.axis('off')
+    plt.show()
 
 else:
     print("Exit..")
-
-writer.close()
