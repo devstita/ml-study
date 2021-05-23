@@ -1,6 +1,5 @@
 import os
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch import nn, optim
@@ -20,11 +19,6 @@ writer = SummaryWriter()
 class Flatten(nn.Module):
     def forward(self, input):
         return input.view(input.size(0), -1)
-
-
-def draw(image):
-    plt.imshow(image, cmap='gray')
-    plt.show()
 
 
 command = input('Input your Command: ').replace(' ', '')
@@ -101,7 +95,6 @@ elif command == 'la':  # Load model and Check Accuracy
         print(f'Accuracy: {accuracy:.4f}')
 
 elif command == 'lq':
-    # Todo: Drawing Alert (NOT IMPORT FILE)
     if not os.path.isfile(saved_model_file_name):
         print('Saved model does not exist..')
         exit(3)
@@ -115,7 +108,7 @@ elif command == 'lq':
     file_path = input('File Path: ')
     img_np = None
     if file_path == 'draw':
-        drawing.draw(28, 28)
+        img_np = drawing.draw(28).astype(np.float32)
     elif os.path.isfile(file_path):
         img_np = np.array(Image.open(file_path).convert('L'), dtype=np.float32)
     else:
@@ -123,7 +116,7 @@ elif command == 'lq':
         exit(2)
 
     print('My Prediction is', torch.argmax(model(torch.from_numpy(img_np).reshape(1, 1, 28, 28))).item())
-    draw(img_np)
+    drawing.show(img_np)
 
 elif command == 'tc':
     pass
