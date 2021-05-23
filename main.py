@@ -1,4 +1,5 @@
 import os
+from collections import OrderedDict
 
 import numpy as np
 import torch
@@ -53,13 +54,17 @@ if command == 'n':  # New model
                        nn.Linear(64 * 7 * 7, 10, bias=True)
    )
 
-    model = nn.Sequential(conv1, conv2, fc)
+    model = nn.Sequential(OrderedDict({
+        'Convolutional Layer1': conv1,
+        'Convolutional Layer2': conv2,
+        'Fully Connected Layer': fc
+    }))
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     writer.add_graph(model, iter(train_dataloader).next()[0])
 
     print('Model Generation Done!')
 
-    epochs = 30
+    epochs = 15
     iteration = len(train_dataloader)
     for epoch in range(epochs + 1):
         for idx, (X, Y) in enumerate(train_dataloader):
@@ -119,7 +124,19 @@ elif command == 'lq':
     drawing.show(img_np)
 
 elif command == 'tc':
-    pass
+    model = torch.load('model_save_cnn.dat')
+    conv1 = model[0]
+    conv2 = model[1]
+    fc = model[2]
+
+    model = nn.Sequential(OrderedDict({
+        'Convolutional Layer1': conv1,
+        'Convolutional Layer2': conv2,
+        'Fully Connected Layer': fc
+    }))
+
+    writer.add_graph(model, torch.from_numpy(np.ones((1, 1, 28, 28), dtype=np.float32)))
+    torch.save(model, 'model_save_cnn.dat')
 
 else:
     print("Exit..")
