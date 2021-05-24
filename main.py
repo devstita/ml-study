@@ -28,7 +28,7 @@ if command == 'n':  # New model
     writer = SummaryWriter()
 
     batch_size = 100
-    learning_rate = 1e-3
+    learning_rate = 1e-4
 
     # Read Data from CSV File
 
@@ -50,9 +50,10 @@ if command == 'n':  # New model
     conv2 = nn.Sequential(
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.MaxPool2d(kernel_size=2, stride=2)
     )
     fc = nn.Sequential(Flatten(),
+                       nn.Dropout(0.5),
                        nn.Linear(64 * 7 * 7, 10, bias=True)
    )
 
@@ -61,12 +62,13 @@ if command == 'n':  # New model
         'Convolutional Layer2': conv2,
         'Fully Connected Layer': fc
     }))
+
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     writer.add_graph(model, iter(train_dataloader).next()[0])
 
     print('Model Generation Done!')
 
-    epochs = 15
+    epochs = 20
     iteration = len(train_dataloader)
     for epoch in range(epochs + 1):
         for idx, (X, Y) in enumerate(train_dataloader):
@@ -110,13 +112,19 @@ elif command == 'lq':
     print('Model Exist!!')
     print('... Loading Model ...')
 
+
     model = torch.load(saved_model_file_name)
     model.eval()
 
-    image = drawing.draw(28).astype(np.float32)
+    while True:
+        image = drawing.draw(28).astype(np.float32)
+        prediction = int(torch.argmax(model(torch.from_numpy(image).reshape(1, 1, 28, 28))).item())
 
-    print('My Prediction is', torch.argmax(model(torch.from_numpy(image).reshape(1, 1, 28, 28))).item())
-    drawing.show(image)
+        print(f'I Think it is {prediction}')
+        drawing.show(image)
+
+        if prediction == 0:
+            break
 
 elif command == 'tc':
     model = torch.load('model_save_cnn.dat')
