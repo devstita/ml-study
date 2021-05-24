@@ -7,6 +7,7 @@ import torch
 from torch import nn, optim
 from torch.nn import functional
 from torch.utils.data import DataLoader, TensorDataset
+from scipy.ndimage import rotate
 from PIL import Image
 
 import drawing
@@ -25,6 +26,7 @@ command = input('Input your Command: ').replace(' ', '')
 
 if command == 'n':  # New model
     from torch.utils.tensorboard import SummaryWriter
+
     writer = SummaryWriter()
 
     batch_size = 100
@@ -43,19 +45,19 @@ if command == 'n':  # New model
 
     # Generate Model and Training
     conv1 = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2)
+        nn.Conv2d(1, 32, kernel_size=3, padding=1),
+        nn.ReLU(),
+        nn.MaxPool2d(kernel_size=2, stride=2)
     )
     conv2 = nn.Sequential(
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2)
+        nn.Conv2d(32, 64, kernel_size=3, padding=1),
+        nn.ReLU(),
+        nn.MaxPool2d(kernel_size=2, stride=2)
     )
     fc = nn.Sequential(Flatten(),
                        nn.Dropout(0.5),
                        nn.Linear(64 * 7 * 7, 10, bias=True)
-   )
+                       )
 
     model = nn.Sequential(OrderedDict({
         'Convolutional Layer1': conv1,
@@ -112,7 +114,6 @@ elif command == 'lq':
     print('Model Exist!!')
     print('... Loading Model ...')
 
-
     model = torch.load(saved_model_file_name)
     model.eval()
 
@@ -127,31 +128,28 @@ elif command == 'lq':
             break
 
 elif command == 'tc':
-    model = torch.load('model_save_cnn.dat')
-    model.eval()
+    main_model = torch.load('model_save_cnn.dat')
+    rotation_model = torch.load('model_save_rotation.dat')
 
-    conv1_weights, conv2_weights = None, None
-    for name, param in model[0][0].named_parameters():
-        if name == 'weight':
-            conv1_weights = param.data
+    main_model.eval()
+    rotation_model.eval()
 
-    for name, param in model[1][0].named_parameters():
-        if name == 'weight':
-            conv2_weights = param.data
+    angles = list(range(-180, 180, 30))
 
-    plt.figure(figsize=(20, 20))
-    for i, kernel in enumerate(conv1_weights):
-        plt.subplot(8, 8, i + 1)
-        plt.imshow(kernel[0, :, :].detach(), cmap='gray')
-        plt.axis('off')
-    plt.show()
+    while True:
+        image = drawing.draw(28).astype(np.float32)
 
-    plt.figure(figsize=(20, 20))
-    for i, kernel in enumerate(conv2_weights):
-        plt.subplot(8, 8, i + 1)
-        plt.imshow(kernel[0, :, :].detach(), cmap='gray')
-        plt.axis('off')
-    plt.show()
+        rotated_angle_idx = rotation_model(torch.from_numpy(image.reshape(1, 1, 28, 28))).argmax(axis=1)
+        print(rotated_angle_idx)
+        image = rotate(image, -angles[rotated_angle_idx], reshape=False)
+
+        prediction = int(torch.argmax(main_model(torch.from_numpy(image).reshape(1, 1, 28, 28))).item())
+
+        print(f'Rotated: {angles[rotated_angle_idx]}\tI Think it is {prediction}')
+        drawing.show(image)
+
+        if prediction == 0:
+            break
 
 else:
     print("Exit..")
